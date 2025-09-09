@@ -53,7 +53,7 @@ all_data["diabetes_type"] = all_data["medcode"].map(medcode_to_type)
 # Step 4: Save the baseline DataFrame
 # =============================================================================
 all_data.to_csv("baseline_ungrouped_df_WithNA.txt", sep="\t", index=False)
-print("Baseline DataFrame created and saved as 'baseline_df_WithNAtxt'")
+print("Baseline DataFrame created and saved as 'baseline_df_WithNA.txt'")
 
 # =============================================================================
 # Step 5: Verify the earliest eventdate for each patid

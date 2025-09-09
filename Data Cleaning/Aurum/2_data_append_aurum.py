@@ -1,7 +1,11 @@
 # -*- coding: utf-8 -*-
 """
-Aurum Data Cleaning Script (Updated to handle .zip archives)
+Aurum Data Cleaning Script (reads .zip archives; writes chunks to filtered_aurum_chunks)
+- Filters Observation (clinical) rows by medcode (and enttype if present)
+- Optionally filters DrugIssue (therapy) rows by productcodeid
+- Writes outputs to: /rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_aurum_chunks
 """
+
 import pandas as pd
 import numpy as np
 import time
@@ -16,129 +20,177 @@ warnings.simplefilter(action='ignore')
 # =============================================================================
 # User Input
 # =============================================================================
+# Working directory (where logs etc. will print from; not where chunks are written)
 current_directory = '/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM'
 current_directory_hpc = '/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM'
 
+# INPUT globs
 clinical_files_directory = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/Aurum/Observation/FZ_Aurum_1_Extract_Observation_*.zip"
-therapy_files_directory = "Aurum/DrugIssue/*.zip"
+therapy_files_directory  = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/Aurum/DrugIssue/*.zip"
 
-clinical_code_directory = "filtered_diabetes_AURUM_codes.txt"
-therapy_code_directory = "final_codelist_gold_therapy.txt"
+# CODELISTS
+clinical_code_directory = "filtered_diabetes_AURUM_codes.txt"   # produced by Script 1
+therapy_code_directory  = "final_codelist_gold_therapy.txt"     # if used
 
+# FILTER SWITCHES
 filter_clinical = True
-filter_therapy = False
-max_rows_limit = 20000
+filter_therapy  = False   # set True only if you have productcode codelist
+
+OUTPUT_DIR = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_aurum_chunks"
 
 # =============================================================================
 # Functions
 # =============================================================================
-def change_directory(current_directory, current_directory_hpc=None):
+def change_directory(local_dir, hpc_dir=None):
     print("-" * 60)
     if platform.system() == 'Windows':
-        path = current_directory
+        path = local_dir
     elif platform.system() == 'Linux':
-        path = current_directory_hpc
+        path = hpc_dir or local_dir
     else:
         raise OSError("Unsupported operating system")
-
-    try:
-        os.chdir(path)
-        print(f"Changed directory to: {os.getcwd()}")
-    except FileNotFoundError:
-        print(f"Error: The path '{path}' does not exist.")
+    os.makedirs(OUTPUT_DIR, exist_ok=True)  # ensure output folder exists
+    os.chdir(path)
+    print(f"Changed directory to: {os.getcwd()}")
+    print(f"Output directory:     {OUTPUT_DIR}")
     print("-" * 60)
 
-def read_codes(codelist_directory, filter_by_codes):
-    if filter_by_codes:
-        codes = pd.read_csv(codelist_directory, sep='\t', dtype=str)
-        if 'medcodeid' in codes.columns:
-            codes.rename(columns={'medcodeid': 'code'}, inplace=True)
-        if 'productcodeid' in codes.columns:
-            codes.rename(columns={'productcodeid': 'code'}, inplace=True)
-        if 'termtype' in codes.columns:
-            codes.rename(columns={'termtype': 'terminology'}, inplace=True)
-        assert len(codes) > 0, 'No codes found in file'
-        return codes
+def read_codes(codelist_path, do_filter):
+    """
+    Reads a codelist and normalizes to columns: ['terminology','code'] if possible.
+    For clinical: expect 'medcodeid' → 'code', and optionally 'termtype' → 'terminology'.
+    For therapy:  expect 'productcodeid' → 'code'.
+    """
+    if not do_filter:
+        return None
+    codes = pd.read_csv(codelist_path, sep='\t', dtype=str)
+    # Normalize column names if present
+    colmap = {}
+    if 'medcodeid' in codes.columns:
+        colmap['medcodeid'] = 'code'
+    if 'productcodeid' in codes.columns:
+        colmap['productcodeid'] = 'code'
+    if 'termtype' in codes.columns:
+        colmap['termtype'] = 'terminology'
+    if colmap:
+        codes = codes.rename(columns=colmap)
+    # If terminology missing but we know it's medcodes (e.g. Script 1), fill it
+    if 'terminology' not in codes.columns and 'code' in codes.columns:
+        codes['terminology'] = 'medcode'
+    assert len(codes) > 0, f'No codes found in {codelist_path}'
+    return codes[['terminology','code']].dropna()
 
-def read_files(files_directory):
-    files = sorted(glob.glob(files_directory))
-    assert len(files) > 0, f'No files found in {files_directory}'
-    return files
-
-def read_zip_file(zip_path):
+def read_zip_all_txt(zip_path):
+    """
+    Read and concatenate *all* TXT members in a ZIP into one DataFrame (dtype=str).
+    Returns empty DF if none could be read.
+    """
+    frames = []
     with zipfile.ZipFile(zip_path, 'r') as z:
-        name = z.namelist()[0]  # Assumes one file per zip
-        with z.open(name) as f:
-            df = pd.read_csv(f, sep='\t', dtype=str)
-    return df
+        for name in z.namelist():
+            if not name.lower().endswith(".txt"):
+                continue
+            with z.open(name) as f:
+                try:
+                    df = pd.read_csv(f, sep='\t', dtype=str, low_memory=False)
+                    frames.append(df)
+                except Exception as e:
+                    print(f"  Skipping {name} in {os.path.basename(zip_path)} (read error: {e})")
+    if frames:
+        return pd.concat(frames, ignore_index=True)
+    return pd.DataFrame()
+
+def read_files(files_glob):
+    files = sorted(glob.glob(files_glob))
+    assert len(files) > 0, f'No files found for pattern: {files_glob}'
+    return files
 
 # =============================================================================
 # Clinical (Observation)
 # =============================================================================
-def append_clinical(files, filter_by_codes=False, codes=None, max_rows_limit=np.inf):
-    tmp_df = []
-    chunk_number = 1
+def append_clinical(files, do_filter=False, codes=None):
+    """
+    Writes one output per input ZIP:
+      OUTPUT_DIR/Cleaned_AURUM_Observation_<seq>.txt
+    Filtering: medcode (and enttype if present & supplied in codelist).
+    """
     start = time.perf_counter()
+    # Split codes into medcodes and enttypes if provided
+    medcodes = pd.Series(dtype=str)
+    entities = pd.Series(dtype=str)
+    if do_filter and codes is not None:
+        medcodes = codes.loc[codes['terminology'].str.lower()=='medcode', 'code'].dropna().astype(str)
+        if 'enttype' in codes['terminology'].str.lower().unique():
+            entities = codes.loc[codes['terminology'].str.lower()=='enttype', 'code'].dropna().astype(str)
 
-    medcodes = codes[codes['terminology'] == 'medcode']
-    entities = codes[codes['terminology'] == 'enttype']
+    out_count = 0
+    for idx, zipf in enumerate(files, start=1):
+        df = read_zip_all_txt(zipf)
+        print(f"[Clinical] {idx}/{len(files)}: {os.path.basename(zipf)} -> {len(df):,} rows before filter")
 
-    for idx, filename in enumerate(files):
-        df = read_zip_file(filename)
-        print(f'Processed file {idx+1}: {os.path.basename(filename)} ({len(df)} rows)')
-
-        if filter_by_codes:
-            if "enttype" in df.columns:
-                df = df[df["medcodeid"].isin(medcodes['code']) | df["enttype"].isin(entities['code'])]
+        if do_filter and not df.empty:
+            if "medcodeid" in df.columns:
+                if "enttype" in df.columns and not entities.empty:
+                    df = df[
+                        df["medcodeid"].astype(str).isin(medcodes) |
+                        df["enttype"].astype(str).isin(entities)
+                    ]
+                else:
+                    df = df[df["medcodeid"].astype(str).isin(medcodes)]
             else:
-                df = df[df["medcodeid"].isin(medcodes['code'])]
+                print("  Warning: 'medcodeid' not in columns; no clinical filtering applied.")
 
-        tmp_df.extend(df.to_dict('records'))
-
-        if len(tmp_df) >= max_rows_limit or (idx + 1 == len(files)):
-            df_out = pd.DataFrame.from_dict(tmp_df)
-            df_out.to_csv(f"Cleaned_AURUM_Observation_{chunk_number}.txt", sep='\t', index=False)
-            tmp_df = []
-            chunk_number += 1
+        out_count += 1
+        out_path = os.path.join(OUTPUT_DIR, f"Cleaned_AURUM_Observation_{out_count}.txt")
+        df.to_csv(out_path, sep='\t', index=False)
+        print(f"  -> Wrote {len(df):,} rows to {out_path}")
 
     print(f"All clinical files completed in {round((time.perf_counter() - start)/60, 2)} mins")
 
 # =============================================================================
 # Therapy (DrugIssue)
 # =============================================================================
-def append_therapy(files, filter_by_codes=False, codes=None, max_rows_limit=np.inf):
-    tmp_df = []
-    chunk_number = 1
+def append_therapy(files, do_filter=False, codes=None):
+    """
+    Writes one output per input ZIP:
+      OUTPUT_DIR/Cleaned_AURUM_DrugIssue_<seq>.txt
+    If do_filter=True, keep rows with productcodeid in codes['code'].
+    """
     start = time.perf_counter()
+    prodcodes = pd.Series(dtype=str)
+    if do_filter and codes is not None:
+        prodcodes = codes['code'].dropna().astype(str)
 
-    for idx, filename in enumerate(files):
-        df = read_zip_file(filename)
-        print(f'Processed file {idx+1}: {os.path.basename(filename)} ({len(df)} rows)')
+    out_count = 0
+    for idx, zipf in enumerate(files, start=1):
+        df = read_zip_all_txt(zipf)
+        print(f"[Therapy]  {idx}/{len(files)}: {os.path.basename(zipf)} -> {len(df):,} rows before filter")
 
-        if filter_by_codes:
-            df = df[df["productcodeid"].isin(codes['code'])]
+        if do_filter and not df.empty:
+            if "productcodeid" in df.columns:
+                df = df[df["productcodeid"].astype(str).isin(prodcodes)]
+            else:
+                print("  Warning: 'productcodeid' not in columns; no therapy filtering applied.")
 
-        tmp_df.extend(df.to_dict('records'))
-
-        if len(tmp_df) >= max_rows_limit or (idx + 1 == len(files)):
-            df_out = pd.DataFrame.from_dict(tmp_df)
-            df_out.to_csv(f"Cleaned_AURUM_DrugIssue_{chunk_number}.txt", sep='\t', index=False)
-            tmp_df = []
-            chunk_number += 1
+        out_count += 1
+        out_path = os.path.join(OUTPUT_DIR, f"Cleaned_AURUM_DrugIssue_{out_count}.txt")
+        df.to_csv(out_path, sep='\t', index=False)
+        print(f"  -> Wrote {len(df):,} rows to {out_path}")
 
     print(f"All therapy files completed in {round((time.perf_counter() - start)/60, 2)} mins")
 
 # =============================================================================
 # Run
 # =============================================================================
-change_directory(current_directory, current_directory_hpc)
+if __name__ == "__main__":
+    change_directory(current_directory, current_directory_hpc)
 
-print("="*60 + "\nAppending Clinical Files\n" + "="*60)
-clinical_codes = read_codes(clinical_code_directory, filter_clinical)
-clinical_files = read_files(clinical_files_directory)
-append_clinical(clinical_files, filter_clinical, clinical_codes, max_rows_limit)
+    print("="*60 + "\nAppending Clinical Files\n" + "="*60)
+    clinical_codes = read_codes(clinical_code_directory, filter_clinical)
+    clinical_files = read_files(clinical_files_directory)
+    append_clinical(clinical_files, filter_clinical, clinical_codes)
 
-print("="*60 + "\nAppending Therapy Files\n" + "="*60)
-therapy_codes = read_codes(therapy_code_directory, filter_therapy)
-therapy_files = read_files(therapy_files_directory)
-append_therapy(therapy_files, filter_therapy, therapy_codes, max_rows_limit)
+    print("="*60 + "\nAppending Therapy Files\n" + "="*60)
+    therapy_codes = read_codes(therapy_code_directory, filter_therapy)
+    therapy_files = read_files(therapy_files_directory)
+    append_therapy(therapy_files, filter_therapy, therapy_codes)

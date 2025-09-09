@@ -14,7 +14,6 @@ df_filtered_codes = df_codes[df_codes['type'].isin([1, 2])].copy()
 print("df_codes after filtering:")
 print(df_filtered_codes['type'].value_counts())
 
-
 # Add a 'terminology' column with the value 'medcode'
 df_filtered_codes.loc[:, 'terminology'] = 'medcode'
 

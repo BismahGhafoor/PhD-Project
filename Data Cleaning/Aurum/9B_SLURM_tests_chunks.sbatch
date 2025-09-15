@@ -20,7 +20,7 @@ conda activate aurum_en
 
 # --- Define where your Python script and data are on scratch ---
 SCRATCH_WORK_DIR="/scratch/alice/b/bg205/smoking_run"
-PYTHON_PROCESSING_SCRIPT="9A_tests.py"
+PYTHON_PROCESSING_SCRIPT="9A_tests_chunks.py"
 
 # --- Go to the working directory on scratch ---
 cd "${SCRATCH_WORK_DIR}" || exit 1 # Exit if 'cd' fails

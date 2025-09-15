@@ -12,7 +12,7 @@ DECLARED_BATCH_SIZE=10
 RUNTIME_CONCURRENT_TASK_LIMIT=16
 
 # Path to your Slurm job template script
-SBATCH_TEMPLATE_FILE="9B_SLURM_tests.py" # Assumed to be in the same directory
+SBATCH_TEMPLATE_FILE="9B_SLURM_tests_chunks.py" # Assumed to be in the same directory
 # --- End Configuration ---
 
 # Simple check to ensure the template file exists

@@ -5,7 +5,7 @@ import os
 # =============================================================================
 # Step 1: Backup chunk files
 # =============================================================================
-chunk_dir = "/rfs/LRWE_Proj88/bg205/DataAnalysis/New/backup_chunks"
+chunk_dir = "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/backup_chunks"
 chunk_files = sorted(glob.glob(os.path.join(chunk_dir, "Cleaned_GOLD_Extract_Clinical_*.txt")))
 backup_dir = "backup_chunks"
 
@@ -39,7 +39,7 @@ all_data = pd.concat([process_chunk(file) for file in chunk_files], ignore_index
 # Step 3: Map medcodes to diabetes types
 # =============================================================================
 # Load the filtered diabetes codes
-codes_file = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Medcode_filtering/filtered_diabetes_codes.txt"
+codes_file = "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/filtered_diabetes_codes.txt"
 codes_df = pd.read_csv(codes_file, sep="\t", dtype=str)
 codes_df.rename(columns={"code": "medcode"}, inplace=True)
 

@@ -94,12 +94,11 @@ df_merged = df_baseline.merge(
     how="left"
 )
 
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # Save the final merged DataFrame
-# ------------------------------------------------------------------------------
+# ----------------------------------------------------------------------
 df_merged.to_csv(
-    "/rfs/LRWE_Proj88/bg205/DataAnalysis/Baseline_dataframe/Cleaned_baselinedata/"
-    "baseline_with_all_features.txt",
+    "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/baseline_with_all_features.txt",
     sep="\t",
     index=False
 )

@@ -140,7 +140,7 @@ if __name__ == "__main__":
     # Read the patient data file (adjust file path and parameters as needed)
     print("\n[Main] Reading patient data...")
     patient = pd.read_csv(
-        "/rfs/LRWE_Proj88/bg205/DataAnalysis/Cleaned_Patient_Smoking_Data.csv",
+        "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/Cleaned_Patient_Smoking_Data.csv",
         sep=",",
         header=0,
         parse_dates=["eventdate", "indexdate", "dod", "smoking_date", "bmi_date", "bp_date"],

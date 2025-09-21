@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on [Your Date]
+Created on 21.09.2025
 Script for cleaning smoking, BMI and blood pressure data using all Additional Clinical files.
 
 This script:
@@ -52,6 +52,8 @@ def get_smoking_data(smoking_data, clinical_smok, patient):
         print("ERROR: Missing expected columns in smoking_data:", e)
         raise
 
+    # --- CHANGED: make data1 numeric before filtering 1/2/3
+    smok_add["data1"] = pd.to_numeric(smok_add["data1"], errors="coerce")
     smok_add = smok_add[(smok_add['data1'].isin([1, 2, 3])) & (smok_add['eventdate'].notnull())]
     smok_add = smok_add.sort_values(['patid', 'eventdate']).reset_index(drop=True)
     smok_add = smok_add.sample(frac=1).drop_duplicates(subset=['patid', 'eventdate'], keep='last')
@@ -74,7 +76,7 @@ def get_smoking_data(smoking_data, clinical_smok, patient):
     smok_clref['smok_clref'] = np.nan
     smoke_keys = ['current smoker', 'never smoker', 'ex smoker']
     smoke_cat = ['Yes', "No", 'Ex']
-    filepath = 'GOLD_Codes_FZ.xlsx'
+    filepath = '/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/GOLD_Codes_FZ.xlsx'
     smoke_codes = pd.read_excel(filepath, sheet_name="Smok")
     smoke_codes = smoke_codes[smoke_codes.source == 'cprd']
     smoke_values = []
@@ -98,20 +100,20 @@ def get_smoking_data(smoking_data, clinical_smok, patient):
     smok_clref.count()
 
     # --- Process HES smoking data (ICD-10 based) ---
-    filepath = 'GOLD_Codes_FZ.xlsx'
+    filepath = '/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/GOLD_Codes_FZ.xlsx'
     smoke_codes = pd.read_excel(filepath, sheet_name="Smok")
     smoke_codes = smoke_codes[smoke_codes.source == 'hes']
     smoke_codes = smoke_codes.medcode.tolist()
     # Note: The variable hes_hosp must exist in the global scope.
-    smok_hes = hes_hosp[hes_hosp["ICD"].str.contains("|".join(smoke_codes))]
+    smok_hes = hes_hosp[hes_hosp["ICD"].fillna('').str.contains("|".join(smoke_codes))]
     smok_hes = smok_hes.sort_values(['patid', 'admidate']).reset_index(drop=True)
     smok_hes = smok_hes.sample(frac=1).drop_duplicates(subset=['patid', 'admidate'], keep='last')
     smok_hes['smok_hes'] = 'Yes'
     smok_hes = smok_hes.rename(columns={'admidate': 'eventdate'})
-    # Ensure "indexdate" exists in HES data; if not, merge from patient.
+    # --- CHANGED: merge indexdate into smok_hes (not hes_hosp)
     if "indexdate" not in smok_hes.columns:
-        print("indexdate missing from hes_hosp; merging from patient.")
-        smok_hes = hes_hosp.merge(patient[['patid', 'indexdate']], on='patid', how='left')
+        print("indexdate missing from smok_hes; merging from patient.")
+        smok_hes = smok_hes.merge(patient[['patid', 'indexdate']], on='patid', how='left')
     try:
         smok_hes = smok_hes[['patid', "indexdate", 'eventdate', 'smok_hes']]
     except KeyError as e:
@@ -233,18 +235,33 @@ def get_bp_data(bp_data, patient):
 # ------------------------------------------------------------------------------
 # Load Patient Data
 patient = pd.read_csv(
-    "/rfs/LRWE_Proj88/bg205/DataAnalysis/Baseline_dataframe/Cleaned_baselinedata/baseline_with_all_features.txt",  # adjust filename/path accordingly
+    "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/baseline_with_all_features.txt",  # adjust filename/path accordingly
     sep="\t",
     dtype=str
 )
-if "indexdate" in patient.columns:
-    patient["indexdate"] = pd.to_datetime(patient["indexdate"], errors="coerce", dayfirst=True)
 patient['patid'] = patient['patid'].astype(str)
 print(f"Patient data loaded: {len(patient)} rows.")
 
+# --- CHANGED: ensure patient has indexdate (derive from earliest eventdate per patid) ---
+if "indexdate" not in patient.columns:
+    print("Note: 'indexdate' missing in patient — deriving from earliest eventdate per patid.")
+    if "eventdate" in patient.columns:
+        _tmp = patient[["patid", "eventdate"]].copy()
+        _tmp["eventdate"] = pd.to_datetime(_tmp["eventdate"], errors="coerce", dayfirst=True)
+        idx_map = (_tmp.dropna()
+                        .groupby("patid", as_index=False)["eventdate"]
+                        .min()
+                        .rename(columns={"eventdate": "indexdate"}))
+        patient = patient.merge(idx_map, on="patid", how="left")
+    else:
+        patient["indexdate"] = pd.NaT
+
+# normalize types
+patient["indexdate"] = pd.to_datetime(patient["indexdate"], errors="coerce", dayfirst=True)
+
 # Load the Clinical Smoking Status File
 clinical_smok = pd.read_csv(
-    "Clinical_SmokingStatus_all.txt.gz",  # your gzipped clinical smoking file
+    "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/Clinical_SmokingStatus_all.txt.gz",  # your gzipped clinical smoking file
     sep="\t",
     compression="gzip",
     header=0,
@@ -253,10 +270,30 @@ clinical_smok = pd.read_csv(
 )
 print(f"Clinical smoking file loaded: {len(clinical_smok)} rows.")
 
-# Locate ALL Additional Clinical Details Files (do not load entire file into memory)
-add_files_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Additional_*.txt"
-add_files = glob.glob(add_files_pattern)
+# --- CHANGED: fallback — derive indexdate from clinical_smok if still missing everywhere ---
+if patient["indexdate"].isna().all():
+    print("Deriving 'indexdate' from clinical_smok earliest eventdate per patid.")
+    idx_map2 = (clinical_smok.groupby("patid", as_index=False)["eventdate"]
+                .min()
+                .rename(columns={"eventdate": "indexdate"}))
+    patient = patient.drop(columns=["indexdate"], errors="ignore").merge(idx_map2, on="patid", how="left")
+    patient["indexdate"] = pd.to_datetime(patient["indexdate"], errors="coerce", dayfirst=True)
+
+# ------------------------------------------------------------------------------
+# Locate ALL Additional Clinical Details files (now zipped) and stream in chunks
+# ------------------------------------------------------------------------------
+
+# Prefer .zip; fall back to .txt if any remain unzipped
+add_zip_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Additional_*.zip"
+add_txt_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Additional_*.txt"
+
+add_files = sorted(glob.glob(add_zip_pattern))
+if not add_files:
+    add_files = sorted(glob.glob(add_txt_pattern))
+
 print(f"Found {len(add_files)} additional clinical files.")
+if not add_files:
+    raise FileNotFoundError(f"No Additional files found for patterns:\n  {add_zip_pattern}\n  {add_txt_pattern}")
 
 # Define temporary file names for each subset
 temp_bp_file      = "temp_bp_data.csv"
@@ -269,22 +306,43 @@ for temp_file in [temp_bp_file, temp_smoking_file, temp_weight_file, temp_height
     if os.path.exists(temp_file):
         os.remove(temp_file)
 
+# Only cols we rely on later; comment out usecols if your extract is missing any
+# needed_cols = ["patid","enttype","eventdate","indexdate","data1","data2","data3"]
+
 max_rows_limit = 20000  # Chunk size
+
 for f in add_files:
     print(f"Processing file: {f}")
-    for chunk in pd.read_csv(f, sep="\t", dtype=str, chunksize=max_rows_limit):
+    compression = "zip" if f.lower().endswith(".zip") else "infer"
+    reader = pd.read_csv(
+        f,
+        sep="\t",
+        dtype=str,
+        chunksize=max_rows_limit,
+        compression=compression,
+        # usecols=needed_cols,   # <- enable if all these columns exist
+    )
+
+    for chunk in reader:
+        # make sure enttype is string
+        if "enttype" in chunk.columns:
+            chunk["enttype"] = chunk["enttype"].astype(str)
+        else:
+            raise KeyError("Column 'enttype' not found in Additional chunk.")
+
+        # Filter and append to temp CSVs
         bp_chunk = chunk[chunk["enttype"] == "1"]
         if not bp_chunk.empty:
             bp_chunk.to_csv(temp_bp_file, mode='a', header=not os.path.exists(temp_bp_file), index=False)
-        
+
         smoking_chunk = chunk[chunk["enttype"] == "4"]
         if not smoking_chunk.empty:
             smoking_chunk.to_csv(temp_smoking_file, mode='a', header=not os.path.exists(temp_smoking_file), index=False)
-        
+
         weight_chunk = chunk[chunk["enttype"] == "13"]
         if not weight_chunk.empty:
             weight_chunk.to_csv(temp_weight_file, mode='a', header=not os.path.exists(temp_weight_file), index=False)
-        
+
         height_chunk = chunk[chunk["enttype"] == "14"]
         if not height_chunk.empty:
             height_chunk.to_csv(temp_height_file, mode='a', header=not os.path.exists(temp_height_file), index=False)

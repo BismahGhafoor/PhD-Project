@@ -20,16 +20,16 @@ warnings.simplefilter(action='ignore')
 # =============================================================================
 # User Input
 # =============================================================================
-current_directory       = '/rfs/LRWE_Proj88/bg205/DataAnalysis'
-current_directory_hpc   = '/rfs/LRWE_Proj88/bg205/DataAnalysis'
+current_directory       = '/scratch/alice/b/bg205/DataCleaning_FINAL_Gold'
+current_directory_hpc   = '/scratch/alice/b/bg205/DataCleaning_FINAL_Gold'
 
 # now point at the ZIPs, not the .txt
 clinical_files_directory = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Clinical_*.zip"
 
-therapy_files_directory  = "GOLD/Therapy/*.zip"
-test_files_directory     = "GOLD/Test/*.zip"
+therapy_files_directory  = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Therapy_*.zip"
+test_files_directory     = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Test_*.zip"
 
-clinical_code_directory  = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Medcode_filtering/filtered_diabetes_codes.txt"
+clinical_code_directory  = "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/filtered_diabetes_codes.txt"
 therapy_code_directory   = "final_codelist_gold_therapy.txt"
 test_code_directory      = "final_codelist_gold_test.txt"
 

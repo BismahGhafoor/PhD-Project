@@ -1,26 +1,16 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on [Your Date]
-Script to create Test_entities_all.txt.gz
+Script to create Test_entities_all.txt.gz from zipped or plain test extracts.
 
 This script:
-  1. Uses a glob pattern to locate raw test files (e.g. Test_Raw_*.txt).
-  2. Reads each file in chunks (to conserve memory).
-  3. Converts the eventdate column to datetime and drops invalid dates.
-  4. Computes an indexdate for each patient (the minimum eventdate in the chunk).
-  5. Selects a subset of columns (patid, eventdate, enttype, plus two lab‐related columns).
-  6. Renames one lab column to “value” (the test result) and another to “unit” (the unit code).
-  7. Appends each processed chunk to a gzipped output file.
-  
-Note:
-  • This script assumes that the raw test file contains columns such as:
-      patid, eventdate, sysdate, constype, consid, medcode, sctid, sctdescid,
-      sctexpression, sctmaptype, sctmapversion, sctisindicative, sctisassured,
-      staffid, enttype, data1, data2, data3, ... 
-  • For lab tests the assumption here is that “data1” holds the test result (to be renamed as “value”)
-    and “data2” holds the unit code (to be renamed as “unit”).
-  • Adjust the raw_files_pattern and the column mapping if your raw files differ.
+  1. Locates raw test files (prefers *.zip, falls back to *.txt).
+  2. Reads each file in chunks (memory-friendly).
+  3. Parses eventdate, drops invalid dates.
+  4. Computes per-chunk indexdate = min(eventdate) per patid.
+  5. Keeps patid, eventdate, indexdate, enttype, data1, data2.
+  6. Renames data1->value, data2->unit.
+  7. Appends to a gzipped output file.
 """
 
 import pandas as pd
@@ -31,10 +21,17 @@ import time
 # ---------------------------
 # User Input and Configuration
 # ---------------------------
-# Change this pattern to point to your raw test files
-raw_files_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Test_*.txt"  # <-- CHANGE THIS PATH
-raw_test_files = sorted(glob.glob(raw_files_pattern))
+# Prefer zipped test files; fall back to txt if any remain unzipped
+raw_zip_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Test_*.zip"
+raw_txt_pattern = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Test_*.txt"
+
+raw_test_files = sorted(glob.glob(raw_zip_pattern))
+if not raw_test_files:
+    raw_test_files = sorted(glob.glob(raw_txt_pattern))
+
 print(f"Found {len(raw_test_files)} raw test files.")
+if not raw_test_files:
+    raise FileNotFoundError(f"No test files found for patterns:\n  {raw_zip_pattern}\n  {raw_txt_pattern}")
 
 # Output filename for the combined, gzipped file
 output_filename = "Test_entities_all.txt.gz"
@@ -47,6 +44,9 @@ if os.path.exists(output_filename):
 # Define chunk size (adjust as needed)
 max_rows_limit = 20000
 
+# Columns we expect to keep
+cols_needed = ["patid", "eventdate", "indexdate", "enttype", "data1", "data2"]
+
 # ---------------------------
 # Processing Loop
 # ---------------------------
@@ -54,30 +54,65 @@ start = time.perf_counter()
 
 for idx, filename in enumerate(raw_test_files):
     print(f"\nProcessing file {idx+1} of {len(raw_test_files)}: {filename}")
-    for chunk in pd.read_csv(filename, sep="\t", dtype=str, chunksize=max_rows_limit):
-        # Convert eventdate to datetime (using dayfirst=True)
+    compression = "zip" if filename.lower().endswith(".zip") else "infer"
+
+    reader = pd.read_csv(
+        filename,
+        sep="\t",
+        dtype=str,
+        chunksize=max_rows_limit,
+        compression=compression,
+        # If you know the input always includes these columns, you can uncomment:
+        usecols=["patid", "eventdate", "enttype", "data1", "data2"],
+        # (indexdate is computed below)
+    )
+
+    for chunk in reader:
+        # Ensure required base columns exist
+        base_required = ["patid", "eventdate"]
+        for col in base_required:
+            if col not in chunk.columns:
+                raise KeyError(f"Required column '{col}' not found in {filename}")
+
+        # Convert eventdate to datetime (dayfirst=True) and drop invalid
         chunk["eventdate"] = pd.to_datetime(chunk["eventdate"], errors="coerce", dayfirst=True)
-        # Drop rows where eventdate is invalid
         chunk = chunk.dropna(subset=["eventdate"])
-        
-        # Compute indexdate for each patient as the minimum eventdate in this chunk
-        index_df = chunk.groupby("patid", as_index=False)["eventdate"].min().rename(columns={"eventdate": "indexdate"})
+
+        if chunk.empty:
+            continue
+
+        # Compute per-chunk indexdate = min(eventdate) per patid
+        index_df = (
+            chunk.groupby("patid", as_index=False)["eventdate"]
+                 .min()
+                 .rename(columns={"eventdate": "indexdate"})
+        )
         chunk = chunk.merge(index_df, on="patid", how="left")
-        
-        # Select the necessary columns.
-        # Here we assume the raw file contains at least: patid, eventdate, enttype, data1, data2.
-        # Adjust this list if your raw file is different.
-        cols_needed = ["patid", "eventdate", "indexdate", "enttype", "data1", "data2"]
-        chunk = chunk[cols_needed]
-        
-        # Rename data1 -> value and data2 -> unit so that lab extraction functions can use them
+
+        # Select the necessary columns (take intersection to be safe)
+        keep_cols = [c for c in cols_needed if c in chunk.columns]
+        # Ensure enttype/data1/data2 exist; if missing, add empty columns
+        for missing in set(cols_needed) - set(keep_cols):
+            chunk[missing] = pd.NA
+            keep_cols.append(missing)
+
+        chunk = chunk[keep_cols]
+
+        # Rename data1 -> value and data2 -> unit
         chunk = chunk.rename(columns={"data1": "value", "data2": "unit"})
-        
-        # Append the chunk to the output file
-        chunk.to_csv(output_filename, mode='a', 
-                     header=not os.path.exists(output_filename),
-                     index=False, sep="\t", compression="gzip", date_format='%d/%m/%Y')
+
+        # Append the chunk to the output gz
+        chunk.to_csv(
+            output_filename,
+            mode="a",
+            header=not os.path.exists(output_filename),
+            index=False,
+            sep="\t",
+            compression="gzip",
+            date_format="%d/%m/%Y",
+        )
+
     elapsed = round((time.perf_counter() - start) / 60, 2)
     print(f"Finished processing file: {filename}. Elapsed time: {elapsed} mins.")
 
-print(f"\nTest_entities_all.txt.gz created successfully.")
+print("\nTest_entities_all.txt.gz created successfully.")

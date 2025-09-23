@@ -12,7 +12,7 @@ DECLARED_BATCH_SIZE=10
 RUNTIME_CONCURRENT_TASK_LIMIT=16
 
 # Path to your Slurm job template script
-SBATCH_TEMPLATE_FILE="9B_SLURM_tests_chunks.py" # Assumed to be in the same directory
+SBATCH_TEMPLATE_FILE="9B_SLURM_tests_chunks.sbatch" # Assumed to be in the same directory
 # --- End Configuration ---
 
 # Simple check to ensure the template file exists
@@ -94,4 +94,4 @@ while [ $current_overall_task_start_index -lt $TOTAL_TASKS_TO_PROCESS ]; do
 done
 
 echo "All batches have been submitted and processed."
-echo "Please check your output files and logs in /scratch/alice/b/bg205/smoking_run/logs2"
+echo "Please check your output files and logs in /scratch/alice/b/bg205/logs_tests"

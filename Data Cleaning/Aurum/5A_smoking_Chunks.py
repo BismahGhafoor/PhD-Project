@@ -31,7 +31,7 @@ csv_files = [
 ]
 
 output_dir = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum"
-output_basename = "Aurum_Clinical_SmokingStatus_TEST"
+output_basename = "Aurum_Clinical_SmokingStatus"
 final_columns = ["patid", "obsdate", "medcodeid", "value"]
 
 # =============================================================================

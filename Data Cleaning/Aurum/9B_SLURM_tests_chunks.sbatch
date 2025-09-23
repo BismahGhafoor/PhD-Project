@@ -6,8 +6,8 @@
 #SBATCH --time=02:00:00                      # Time PER TASK in this batch
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
-#SBATCH --output=/scratch/alice/b/bg205/smoking_run/tests_logs/test_biomarkers_%A_%a.out
-#SBATCH --error=/scratch/alice/b/bg205/smoking_run/tests_logs/test_biomarkers_%A_%a.err
+#SBATCH --output=/scratch/alice/b/bg205/logs_tests/test_biomarkers_%A_%a.out
+#SBATCH --error=/scratch/alice/b/bg205/logs_tests/test_biomarkers_%A_%a.err
 
 
 # --- IMPORTANT: Load your Python environment ---
@@ -20,8 +20,7 @@ conda activate aurum_en
 
 # --- Define where your Python script and data are on scratch ---
 SCRATCH_WORK_DIR="/scratch/alice/b/bg205/smoking_run"
-PYTHON_PROCESSING_SCRIPT="9A_tests_chunks.py"
-
+PYTHON_PROCESSING_SCRIPT="/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/9A_tests_chunks.py
 # --- Go to the working directory on scratch ---
 cd "${SCRATCH_WORK_DIR}" || exit 1 # Exit if 'cd' fails
 

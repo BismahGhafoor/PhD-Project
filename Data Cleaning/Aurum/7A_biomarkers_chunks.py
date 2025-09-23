@@ -8,8 +8,8 @@ import sys
 # ------------------------
 zip_index = int(sys.argv[1])
 zip_folder = "/scratch/alice/b/bg205/smoking_data_input/Observation"
-code_folder = "/scratch/alice/b/bg205/smoking_run/clinical_biomarkers_CSV_exports"
-output_folder = "biomarker_tmp_outputs"
+code_folder = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Codes/clinical_biomarkers_CSV_exports"
+output_folder = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/biomarker_tmp_outputs"
 
 os.makedirs(output_folder, exist_ok=True)
 

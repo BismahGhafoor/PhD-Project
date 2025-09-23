@@ -16,7 +16,7 @@ module purge # or: module load Anaconda3; source activate <env-name>
 
 LOG_DIR="/scratch/alice/b/bg205/smoking_slurm/logs2"
 SCRATCH_WORK_DIR="/scratch/alice/b/bg205/smoking_run"
-PYTHON_PROCESSING_SCRIPT="/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/8test.py"
+PYTHON_PROCESSING_SCRIPT="/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/8A_bmi_smok_bp.py"
 
 mkdir -p "$LOG_DIR"
 cd "$SCRATCH_WORK_DIR"

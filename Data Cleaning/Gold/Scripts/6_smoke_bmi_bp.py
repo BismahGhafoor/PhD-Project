@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on 21.09.2025
+Created on [Your Date]
 Script for cleaning smoking, BMI and blood pressure data using all Additional Clinical files.
 
 This script:

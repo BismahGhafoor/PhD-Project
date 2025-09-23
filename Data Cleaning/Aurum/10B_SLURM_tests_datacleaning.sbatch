@@ -1,7 +1,7 @@
 #!/bin/bash
 #SBATCH --job-name=aurum_biomarker_cleaning
-#SBATCH --output=aurum_cleaning_%j.out
-#SBATCH --error=aurum_cleaning_%j.err
+#SBATCH --output=/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/aurum_cleaning_%j.out
+#SBATCH --error=/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/aurum_cleaning_%j.err
 #SBATCH --time=06:00:00
 #SBATCH --partition=short
 #SBATCH --mem=100G          # Request all memory on node
@@ -15,5 +15,3 @@ source ~/aurum_env/bin/activate
 
 # Run the script
 python3 -u 10A_tests_datacleaning.py
-
-

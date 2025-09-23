@@ -5,7 +5,7 @@ import os
 # =============================================================================
 # Step 1: Backup chunk files
 # =============================================================================
-chunk_dir = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_aurum_chunks"
+chunk_dir = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/filtered_aurum_chunks"
 chunk_files = sorted(glob.glob(os.path.join(chunk_dir, "Cleaned_AURUM_Observation_*.txt")))
 backup_dir = "aurum_backup_chunks"
 
@@ -36,7 +36,7 @@ all_data = pd.concat([process_chunk(file) for file in chunk_files], ignore_index
 # =============================================================================
 # Step 3: Map medcodeids to diabetes types
 # =============================================================================
-codes_file = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_diabetes_AURUM_codes.txt"
+codes_file = "//scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/filtered_diabetes_AURUM_codes.txt"
 codes_df = pd.read_csv(codes_file, sep="\t", dtype=str)
 medcode_to_type = codes_df.set_index("medcodeid")["type"].to_dict()
 all_data["diabetes_type"] = all_data["medcodeid"].map(medcode_to_type)

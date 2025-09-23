@@ -6,12 +6,12 @@ from glob import glob
 
 # — Paths —
 patient_dir        = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/Aurum/Patient"
-obs_dir            = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_aurum_chunks"
+obs_dir            = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/filtered_aurum_chunks"
 gender_lookup_zip  = "/rfs/LRWE_Proj88/Shared/Lookup/202205_Lookups_CPRDAurum.zip"
 hes_eth_path       = "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/Aurum_linked/hes_patient_23_002869_DM.txt"
 imd_path           = "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/Aurum_linked/patient_2019_imd_23_002869.txt"
 death_path         = "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/Aurum_linked/death_patient_23_002869_DM.txt"
-baseline_path      = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/aurum_baseline_grouped_df_NoNA.txt"
+baseline_path      = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/aurum_baseline_grouped_df_NoNA.txt"
 codes_dir          = "/rfs/LRWE_Proj88/bg205/Codes/ethnicity_CSV_exports"
 
 # 0. Load baseline
@@ -156,6 +156,6 @@ demographics = (
 
 # 7. Enrich baseline and save
 enriched = baseline_df.merge(demographics, on="patid", how="left")
-output_path = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/Enriched_baseline_with_demographics.csv"
+output_path = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Enriched_baseline_with_demographics.csv"
 enriched.to_csv(output_path, index=False)
 print("Enriched baseline saved to:", output_path)

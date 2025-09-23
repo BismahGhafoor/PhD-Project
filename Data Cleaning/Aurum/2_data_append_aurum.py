@@ -21,22 +21,22 @@ warnings.simplefilter(action='ignore')
 # User Input
 # =============================================================================
 # Working directory (where logs etc. will print from; not where chunks are written)
-current_directory = '/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM'
-current_directory_hpc = '/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM'
+current_directory = '/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum'
+current_directory_hpc = '/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum'
 
 # INPUT globs
 clinical_files_directory = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/Aurum/Observation/FZ_Aurum_1_Extract_Observation_*.zip"
 therapy_files_directory  = "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/Aurum/DrugIssue/*.zip"
 
 # CODELISTS
-clinical_code_directory = "filtered_diabetes_AURUM_codes.txt"   # produced by Script 1
+clinical_code_directory = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/filtered_diabetes_AURUM_codes.txt"   # produced by Script 1
 therapy_code_directory  = "final_codelist_gold_therapy.txt"     # if used
 
 # FILTER SWITCHES
 filter_clinical = True
 filter_therapy  = False   # set True only if you have productcode codelist
 
-OUTPUT_DIR = "/rfs/LRWE_Proj88/bg205/DataAnalysis/Data_Cleaning_AURUM/filtered_aurum_chunks"
+OUTPUT_DIR = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/filtered_aurum_chunks"
 
 # =============================================================================
 # Functions

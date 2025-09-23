@@ -13,11 +13,11 @@ import pandas as pd
 # Folder containing the Aurum Observation ZIPs
 zip_folder   = "/scratch/alice/b/bg205/smoking_data_input/Observation"
 # Excel workbook with medcodeids (sheet names must match EXCEL_SHEETS below)
-excel_codes  = "/scratch/alice/b/bg205/smoking_run/modified_LRWE_Lilly_Aurum_medcodeid_clinical biomarkers.xlsx"
+excel_codes  = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/modified_LRWE_Lilly_Aurum_medcodeid_clinical biomarkers.xlsx"
 # TXT with Total Cholesterol medcodeids (tab-delimited or autodetected)
-tot_chol_txt = "/scratch/alice/b/bg205/smoking_run/Codelist_Total_Cholesterol.txt"
+tot_chol_txt = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Codelist_Total_Cholesterol.txt"
 # Where to write chunk outputs
-output_folder = "/scratch/alice/b/bg205/smoking_run/test_biomarker_tmp_outputsFINAL"
+output_folder = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/test_biomarker_tmp_outputs"
 
 # Exact sheet names (must match your workbook)
 EXCEL_SHEETS = {

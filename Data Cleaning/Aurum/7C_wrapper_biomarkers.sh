@@ -10,7 +10,7 @@ RUNTIME_CONCURRENT_TASK_LIMIT=16
 
 # Path to your Slurm job template script
 #SBATCH_TEMPLATE_FILE="template_smoking_job.sbatch" # Assumed to be in the same directory
-SBATCH_TEMPLATE_FILE="7B_SLURM_biomakarkers.sbatch" # Assumed to be in the same directory
+SBATCH_TEMPLATE_FILE="7B_SLURM_biomarkers.sbatch" # Assumed to be in the same directory
 # --- End Configuration ---
 
 # Simple check to ensure the template file exists

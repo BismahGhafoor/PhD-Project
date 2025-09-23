@@ -5,15 +5,15 @@
 #SBATCH --time=01:00:00                      # Time PER TASK in this batch
 #SBATCH --cpus-per-task=1
 #SBATCH --mem=4G
-#SBATCH --output=/scratch/alice/b/bg205/smoking_run/logs/smoking_batch_%A_%a.out # Logs for each task
-#SBATCH --error=/scratch/alice/b/bg205/smoking_run/logs/smoking_batch_%A_%a.err  # Error logs
+#SBATCH --output=/scratch/alice/b/bg205/smoking_slurm/logs5/smoking_batch_%A_%a.out # Logs for each task
+#SBATCH --error=/scratch/alice/b/bg205/smoking_slurm/logs5/smoking_batch_%A_%a.err  # Error logs
 
 # --- IMPORTANT: Load your Python environment ---
 module purge
 
 # --- Define where your Python script and data are on scratch ---
 SCRATCH_WORK_DIR="/scratch/alice/b/bg205/smoking_run"
-PYTHON_PROCESSING_SCRIPT="5A_smoking_Chunks.py"
+PYTHON_PROCESSING_SCRIPT="/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/5A_smoking_Chunks.py"
 
 # --- Go to the working directory on scratch ---
 cd "${SCRATCH_WORK_DIR}" || exit 1 # Exit if 'cd' fails
@@ -28,6 +28,6 @@ echo "Executing Python script: python ${PYTHON_PROCESSING_SCRIPT} $SLURM_ARRAY_T
 # --- Run your Python script ---
 # Your Python script (process_zip_chunk.py) takes the SLURM_ARRAY_TASK_ID
 # as an argument to know which ZIP file (from 0 to 1046) it needs to process.
-python "${PYTHON_PROCESSING_SCRIPT}" $SLURM_ARRAY_TASK_ID
+python -u "${PYTHON_PROCESSING_SCRIPT}" $SLURM_ARRAY_TASK_ID
 
 echo "Python script for Task $SLURM_ARRAY_TASK_ID finished."

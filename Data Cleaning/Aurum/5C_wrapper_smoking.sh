@@ -91,4 +91,9 @@ while [ $current_overall_task_start_index -lt $TOTAL_TASKS_TO_PROCESS ]; do
 done
 
 echo "All batches have been submitted and processed."
-echo "Please check your output files and logs in /scratch/alice/b/bg205/smoking_run/logs"
+echo "Submitting merge job..."
+sbatch -J smoking_merge -t 00:20:00 -c 1 --mem=2G \
+  -o /scratch/alice/b/bg205/smoking_slurm/logs/smoking_merge_%j.out \
+  -e /scratch/alice/b/bg205/smoking_slurm/logs/smoking_merge_%j.err \
+  --wrap 'cd /scratch/alice/b/bg205/DataCleaning_FINAL_Aurum && EXPECTED_TASKS=1047 MERGE_WAIT_SECS=0 python -u 5A.py merge'
+echo "Please check your output files and logs in /scratch/alice/b/bg205/smoking_slurm/logs"

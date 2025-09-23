@@ -95,5 +95,5 @@ echo "Submitting merge job..."
 sbatch -J smoking_merge -t 00:20:00 -c 1 --mem=2G \
   -o /scratch/alice/b/bg205/smoking_slurm/logs/smoking_merge_%j.out \
   -e /scratch/alice/b/bg205/smoking_slurm/logs/smoking_merge_%j.err \
-  --wrap 'cd /scratch/alice/b/bg205/DataCleaning_FINAL_Aurum && EXPECTED_TASKS=1047 MERGE_WAIT_SECS=0 python -u 5A.py merge'
+  --wrap 'cd /scratch/alice/b/bg205/DataCleaning_FINAL_Aurum && EXPECTED_TASKS=1047 MERGE_WAIT_SECS=0 python -u 5A_smoking_Chunks.py merge'
 echo "Please check your output files and logs in /scratch/alice/b/bg205/smoking_slurm/logs"

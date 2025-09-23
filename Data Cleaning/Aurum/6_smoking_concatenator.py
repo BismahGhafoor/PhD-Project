@@ -2,8 +2,8 @@ import pandas as pd
 import glob
 import os
 
-chunks_dir = "/scratch/alice/b/bg205/smoking_run/smoking_tmp_outputs"
-pattern = os.path.join(chunks_dir, "smoking_chunk_*.csv.gz")
+chunks_dir = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum"
+pattern = os.path.join(chunks_dir, "Aurum_Clinical_SmokingStatus_task*.csv.gz") 
 
 files = sorted(glob.glob(pattern))
 if not files:

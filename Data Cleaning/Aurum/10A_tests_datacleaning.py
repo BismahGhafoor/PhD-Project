@@ -4,11 +4,11 @@ import glob
 import os
 
 # --------------------------
-# Paths (same as before)
+# Paths 
 # --------------------------
-chunk_folder  = "test_biomarker_tmp_outputsFINAL"  # output from 7_test.py
-output_file   = "FINAL_Aurum_with_Tests.csv"
-enriched_file = "Enriched_Aurum_with_Biomarkers.csv"
+chunk_folder  = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/test_biomarker_tmp_outputs"  
+output_file   = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/FINAL_Aurum_with_Tests.csv"
+enriched_file = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Enriched_Aurum_with_Biomarkers.csv"
 
 # ---------- Load cohort ----------
 df = pd.read_csv(enriched_file, dtype=str)

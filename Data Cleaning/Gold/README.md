@@ -44,12 +44,12 @@ Some scripts import `helper_functions` (e.g., save_long_format_data, nperc_count
 
 Ensure helper_functions.py is importable (same folder or on PYTHONPATH).
 
-### Example 
+### Example environment creation
 ```bash
-conda create -n goldclean python=3.11 -y
+conda env create -f environment.yml
 conda activate goldclean
-pip install pandas numpy openpyxl
 ```
+
 
 ## Inputs (where the scripts expect data)
 

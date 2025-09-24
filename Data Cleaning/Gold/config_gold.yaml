@@ -1,0 +1,69 @@
+project:
+  name: "CPRD_GOLD_cleaning"
+
+paths:
+  # Working/output/log directories (safe, non-sensitive locations)
+  work_dir: "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold"
+  out_dir:  "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold"
+  log_dir:  "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/logs"
+
+raw:
+  # Prefer zipped files; scripts fall back to .txt if needed
+  clinical_pattern:   "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Clinical_*.zip"
+  therapy_pattern:    "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Therapy_*.zip"
+  test_pattern:       "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Test_*.zip"
+  additional_pattern: "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Additional_*.zip"
+
+  # Patient (gender/YOB) — zipped
+  patient_zip: "/rfs/LRWE_Proj88/Shared/CPRD_Raw_Data_Extract_15.01.2024/GOLD/FZ_GOLD_All_Extract_Patient_001.zip"
+
+linkage:
+  ethnicity_file: "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/GOLD_linked/hes_patient_23_002869_DM.txt"
+  imd_file:       "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/GOLD_linked/patient_2019_imd_23_002869.txt"
+  death_file:     "/rfs/LRWE_Proj88/Shared/Linkage_Raw_Data_14.02.2024/Results_type2_23_002869/GOLD_linked/death_patient_23_002869_DM.txt"
+
+codes:
+  # Master diabetes codelist (tab-delimited: medcode, type, ...)
+  diabetes_code_file: "/rfs/LRWE_Proj88/Shared/Codes/GOLD_final.txt"
+  # Where script 1 writes the filtered file (type ∈ {1,2}, medcode→code, terminology='medcode')
+  filtered_diabetes_codes: "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/filtered_diabetes_codes.txt"
+
+  # Optional therapy/test code filters (used if you toggle filter_therapy / filter_test)
+  therapy_codelist: "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/final_codelist_gold_therapy.txt"
+  test_codelist:    "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/final_codelist_gold_test.txt"
+
+  # Smoking codes Excel (sheet: Smok); used by 5_smoking_Data_append.py and 6_smoke_bmi_bp.py
+  smoking_excel: "/scratch/alice/b/bg205/DataCleaning_FINAL_Gold/GOLD_Codes_FZ.xlsx"
+  smoking_sheet: "Smok"
+
+hba1c:
+  # Unit lookup used in 8_test_data_cleaning.py to convert HbA1c to %
+  units_sum_file: "/rfs/LRWE_Proj88/Shared/Cohort_Definition/Denominator_Linkage_CPRD_Cohort_Data/GOLD_Lookups/GOLD/TXTFILES/SUM.txt"
+
+processing:
+  dayfirst_dates: true       # dd/mm/yyyy parsing
+  chunk_size: 20000          # default in your scripts
+  filter_clinical: true      # used in 2_Gold_data_append.py
+  filter_therapy:  false
+  filter_test:     false
+
+outputs:
+  # Chunked append outputs (TSV)
+  clinical_chunks_prefix: "Cleaned_GOLD_Extract_Clinical_"
+  therapy_chunks_prefix:  "Cleaned_GOLD_Extract_Therapy_"
+  test_chunks_prefix:     "Cleaned_GOLD_Extract_Test_"
+
+  # Baselines
+  baseline_ungrouped:    "baseline_ungrouped_df_WithNA.txt"
+  baseline_grouped:      "baseline_grouped_df_WithNA.txt"
+  baseline_type1:        "baseline_Type_1_Diabetes_WithNA.txt"
+  baseline_type2:        "baseline_Type_2_Diabetes_WithNA.txt"
+  baseline_with_features:"baseline_with_all_features.txt"
+
+  # Smoking / BMI / BP
+  clinical_smoking_gz:   "Clinical_SmokingStatus_all.txt.gz"
+  patient_smoking_bmi_bp:"Cleaned_Patient_Smoking_Data.csv"
+
+  # Tests / Labs
+  test_entities_gz:      "Test_entities_all.txt.gz"
+  labs_merged_csv:       "extracted_lab_data.csv"

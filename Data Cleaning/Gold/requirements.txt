@@ -1,0 +1,9 @@
+# Core
+pandas>=2.2,<3.0
+numpy>=1.26
+openpyxl>=3.1         # for reading GOLD_Codes_FZ.xlsx
+PyYAML>=6.0           # if you choose to load config_gold.yaml in scripts
+
+# Nice-to-have utilities (optional; safe to include)
+tqdm>=4.66            # progress bars
+python-dateutil>=2.9  # date parsing utilities (pandas dependency, listed explicitly)

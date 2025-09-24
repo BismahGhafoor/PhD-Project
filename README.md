@@ -45,3 +45,10 @@ We create reproducible cleaning pipelines for **CPRD Aurum** and **CPRD GOLD**, 
 ```bash
 git clone https://github.com/BismahGhafoor/PhD-Project.git
 cd PhD-Project
+
+## Acknowledgements
+Thanks to the NIHR ARC and Leicester Diabetes Research Centre (in particular, Dr. Sharmin Shabnam, Dr. Francesco Zaccardi and Prof. Kamlesh Khunit) for funding and supporting this research.
+
+## Contact
+For any questions or inquiries, please contact Bismah Ghafoor at bg205@leicester.ac.uk.
+

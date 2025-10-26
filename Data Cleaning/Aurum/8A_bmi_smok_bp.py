@@ -11,9 +11,9 @@ print("Setting up file paths...")
 # Paths
 # --------------------------
 ROOT = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum"
-biomarker_chunk_folder = os.path.join(ROOT, "biomarker_tmp_outputs")
-clinical_smoking_file  = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Aurum_smoking_records_all.csv.gz"
-demographics_file      = os.path.join(ROOT, "Enriched_baseline_with_demographics.csv")
+biomarker_chunk_folder = os.path.join(ROOT, "biomarker_tmp_outputs_txt")
+clinical_smoking_file  = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Aurum_smoking_records_all.txt.gz"
+demographics_file      = os.path.join(ROOT, "Enriched_baseline_with_demographics.txt")
 hes_file               = os.path.join(ROOT, "hes_diagnosis_hosp_23_002869_DM.txt")
 
 # Codes directories (from your screenshot)
@@ -31,7 +31,7 @@ def load_codes(filename: str, base_dir: str) -> list:
 
     # Try with skipped header rows first, then fall back to no skip
     for skip in (2, 0):
-        df = pd.read_csv(path, skiprows=skip)
+        df = pd.read_csv(path, skiprows=skip, dtype=str)
         cols = df.columns.str.lower().str.strip()
         medcode_cols = [c for c in cols if 'medcode' in c]
         if medcode_cols:
@@ -41,19 +41,24 @@ def load_codes(filename: str, base_dir: str) -> list:
     raise ValueError(f"No column containing 'medcode' in {filename}. Columns tried: {cols.tolist()}")
 
 def load_all_chunks(prefix: str) -> pd.DataFrame:
-    """Load all gzipped CSV chunks for a given prefix from biomarker_chunk_folder."""
     print(f"Loading {prefix} chunks...")
-    pattern = os.path.join(biomarker_chunk_folder, f"{prefix}_chunk_*.csv.gz")
-    files = sorted(glob.glob(pattern))
+    pat_csv = os.path.join(biomarker_chunk_folder, f"{prefix}_chunk_*.csv.gz")
+    pat_tsv = os.path.join(biomarker_chunk_folder, f"{prefix}_chunk_*.txt.gz")
+    files = sorted(glob.glob(pat_tsv) + glob.glob(pat_csv))
     if not files:
-        raise FileNotFoundError(f"No files found for pattern: {pattern}")
-    return pd.concat((pd.read_csv(f, dtype=str) for f in files), ignore_index=True)
+        raise FileNotFoundError(f"No files found for patterns: {pat_tsv} or {pat_csv}")
+
+    dfs = []
+    for f in files:
+        sep = "\t" if f.endswith(".txt.gz") else ","
+        dfs.append(pd.read_csv(f, dtype=str, sep=sep, compression="gzip"))
+    return pd.concat(dfs, ignore_index=True)
 
 # --------------------------
 # Load demographic and HES data
 # --------------------------
 print("Loading demographics and clinical smoking data...")
-demog = pd.read_csv(demographics_file, dtype=str, dayfirst=True)
+demog = pd.read_csv(demographics_file, sep="\t", dtype=str, dayfirst=True)
 demog['indexdate'] = pd.to_datetime(demog['indexdate'], errors='coerce')
 demog['dod']       = pd.to_datetime(demog['dod'], errors='coerce')
 demog['patid']     = demog['patid'].astype(str)
@@ -62,8 +67,8 @@ print("[DEBUG] Sample loaded demographics:")
 print(demog[['patid', 'indexdate']].head(10))
 print(f"[DEBUG] Missing indexdate: {demog['indexdate'].isna().sum()}")
 
-clinical_smok = pd.read_csv(clinical_smoking_file, sep=",", compression="gzip",
-                            parse_dates=['obsdate'], dayfirst=True)
+clinical_smok = pd.read_csv(clinical_smoking_file, sep="\t", compression="gzip",
+                            parse_dates=["obsdate"], dayfirst=True)
 
 print("Loading and merging HES data in chunks...")
 chunked_hes = []
@@ -308,6 +313,6 @@ if missing_cols:
         demog[col] = np.nan
 
 demog = demog[final_cols]
-demog.to_csv("Enriched_Aurum_with_Biomarkers.csv", index=False)
+demog.to_csv("Enriched_Aurum_with_Biomarkers.txt", sep="\t", index=False)
 
-print("Final enriched Aurum dataset saved as 'Enriched_Aurum_with_Biomarkers.csv'")
+print("Final enriched Aurum dataset saved as 'Enriched_Aurum_with_Biomarkers.txt'")

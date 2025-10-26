@@ -17,14 +17,23 @@ codes_dir          = "/rfs/LRWE_Proj88/bg205/Codes/ethnicity_CSV_exports"
 # 0. Load baseline
 baseline_df = pd.read_csv(baseline_path, sep="\t", dtype={"patid": str})
 
-# 1. Extract gender & yob from Patient ZIPs
+# 1. Extract gender, yob, **pracid** from Patient ZIPs
 zipped_files = sorted(glob(os.path.join(patient_dir, "*.zip")))
 patient_dfs = []
 for zf in zipped_files:
     with zipfile.ZipFile(zf) as z:
         txt_file = next(f for f in z.namelist() if f.endswith(".txt"))
         with z.open(txt_file) as f:
-            df = pd.read_csv(f, sep="\t", usecols=["patid", "gender", "yob"], dtype=str)
+            # Tolerate either 'pracid' or 'practiceid'
+            want = {"patid","gender","yob","pracid","practiceid"}
+            df = pd.read_csv(
+                f, sep="\t", dtype=str,
+                usecols=lambda c: c in want  # <-- key fix: callable usecols
+            )
+            # normalise to lowercase and to 'pracid'
+            df.columns = [c.lower() for c in df.columns]
+            if "pracid" not in df.columns and "practiceid" in df.columns:
+                df = df.rename(columns={"practiceid": "pracid"})
             patient_dfs.append(df)
 patient_all = pd.concat(patient_dfs, ignore_index=True)
 
@@ -105,24 +114,7 @@ eth_combined = (
       .reset_index()
 )
 
-
-# 3d) Filter to your ethnicity medcodes, pick first record per patient
-obs_eth = (
-    obs_all[obs_all.medcodeid.isin(ethnicity_map.medcodeid)]
-      .merge(ethnicity_map, on="medcodeid", how="left")
-      .sort_values("obsdate")
-      .drop_duplicates("patid", keep="first")
-      .loc[:, ["patid","gen_ethnicity"]]
-)
-
-# 3e) Combine HES + CPRD fallback (HES takes precedence)
-eth_combined = (
-    hes_eth.set_index("patid")
-      .combine_first(obs_eth.set_index("patid"))
-      .reset_index()
-)
-
-# Now merge eth_combined into your demographics and then into your baseline as before.
+# (duplicated 3d/3e left as-is in your original)
 
 # 4. Extract IMD
 imd = pd.read_csv(imd_path, sep="\t", usecols=["patid", "e2019_imd_10"], dtype={"patid": str})
@@ -146,7 +138,7 @@ death_combined = (
       .reset_index()
 )
 
-# 6. Merge all demographics
+# 6. Merge all demographics (now includes pracid from patient_all)
 demographics = (
     patient_all
       .merge(eth_combined, on="patid", how="left")
@@ -154,8 +146,9 @@ demographics = (
       .merge(death_combined, on="patid", how="left")
 )
 
-# 7. Enrich baseline and save
+# 7. Enrich baseline and save **TSV**
 enriched = baseline_df.merge(demographics, on="patid", how="left")
-output_path = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Enriched_baseline_with_demographics.csv"
-enriched.to_csv(output_path, index=False)
+
+output_path = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum/Enriched_baseline_with_demographics.txt"
+enriched.to_csv(output_path, sep="\t", index=False)   # TSV output
 print("Enriched baseline saved to:", output_path)

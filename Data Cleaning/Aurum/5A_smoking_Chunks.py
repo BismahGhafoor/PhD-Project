@@ -2,6 +2,9 @@
 """
 Extract smoking status from CPRD Aurum zipped observation files using medcodeids (with debug output).
 One-zip-per-task: pass SLURM_ARRAY_TASK_ID or a numeric CLI arg. Task i reads only zip i.
+
+Also supports: `python test_smoke.py merge`
+→ merges Aurum_Clinical_SmokingStatus_task*.txt.gz into Aurum_Clinical_SmokingStatus_ALL.txt.gz
 """
 
 import pandas as pd
@@ -13,6 +16,7 @@ import glob
 import warnings
 import platform
 import sys
+import gzip
 
 warnings.simplefilter(action='ignore')
 
@@ -31,7 +35,7 @@ csv_files = [
 ]
 
 output_dir = "/scratch/alice/b/bg205/DataCleaning_FINAL_Aurum"
-output_basename = "Aurum_Clinical_SmokingStatus"
+output_basename = "Aurum_Clinical_SmokingStatus"   # chunks: *_task####.txt.gz
 final_columns = ["patid", "obsdate", "medcodeid", "value"]
 
 # =============================================================================
@@ -55,9 +59,12 @@ def change_directory(current_directory, current_directory_hpc=None):
 def parse_task_id():
     """
     Get task id from CLI or SLURM_ARRAY_TASK_ID.
-    Returns an int (0-based) or None if not provided.
+    Returns: int (0-based), "merge", or None.
     """
-    # CLI arg takes precedence
+    # special CLI arg: 'merge'
+    if len(sys.argv) > 1 and sys.argv[1].strip().lower() == "merge":
+        return "merge"
+    # CLI arg numeric
     if len(sys.argv) > 1 and sys.argv[1].strip() != "":
         try:
             return int(sys.argv[1])
@@ -72,11 +79,39 @@ def parse_task_id():
             print(f"WARNING: invalid SLURM_ARRAY_TASK_ID '{env_tid}'; ignoring.")
     return None
 
+def merge_per_task_outputs(out_dir, basename):
+    """
+    Merge TSV gzip chunks named '<basename>_task*.txt.gz' into
+    '<basename>_ALL.txt.gz' in out_dir, streaming to keep memory low.
+    """
+    pattern = os.path.join(out_dir, f"{basename}_task*.txt.gz")
+    files = sorted(glob.glob(pattern))
+    if not files:
+        raise FileNotFoundError(f"No chunk files found matching {pattern}")
+
+    target = os.path.join(out_dir, f"{basename}_ALL.txt.gz")
+    print(f"[merge] Merging {len(files)} files -> {target}")
+
+    wrote_header = False
+    start = time.perf_counter()
+    with gzip.open(target, "wt") as w:
+        for f in files:
+            for chunk in pd.read_csv(f, sep="\t", dtype=str, chunksize=500_000):
+                chunk.to_csv(w, sep="\t", index=False, header=not wrote_header)
+                wrote_header = True
+    mins = round((time.perf_counter() - start) / 60, 2)
+    print(f"[merge] Done in {mins} min")
+
 # =============================================================================
 # Main
 # =============================================================================
 if __name__ == '__main__':
     change_directory(current_directory, current_directory_hpc)
+
+    task_id = parse_task_id()
+    if task_id == "merge":
+        merge_per_task_outputs(output_dir, output_basename)
+        sys.exit(0)
 
     # Load medcodeids from CSVs
     medcodeids = []
@@ -99,16 +134,18 @@ if __name__ == '__main__':
     print(f"Discovered {len(all_zip_files)} observation zip(s).")
 
     # Decide which ZIP(s) to process for this task
-    task_id = parse_task_id()
     if task_id is not None:
-        if task_id < 0 or task_id >= len(all_zip_files):
-            raise IndexError(f"Task id {task_id} out of range 0..{len(all_zip_files)-1}")
-        zip_files = [all_zip_files[task_id]]
-        output_filename = os.path.join(output_dir, f"{output_basename}_task{task_id:04d}.csv.gz")
-        print(f"Array task {task_id}: processing {os.path.basename(zip_files[0])}")
+        if isinstance(task_id, int):
+            if task_id < 0 or task_id >= len(all_zip_files):
+                raise IndexError(f"Task id {task_id} out of range 0..{len(all_zip_files)-1}")
+            zip_files = [all_zip_files[task_id]]
+            output_filename = os.path.join(output_dir, f"{output_basename}_task{task_id:04d}.txt.gz")
+            print(f"Array task {task_id}: processing {os.path.basename(zip_files[0])}")
+        else:
+            raise ValueError("Unexpected task_id state.")
     else:
         zip_files = all_zip_files
-        output_filename = os.path.join(output_dir, f"{output_basename}_all.csv.gz")
+        output_filename = os.path.join(output_dir, f"{output_basename}_all.txt.gz")
         print(f"No task id provided; processing ALL {len(zip_files)} zip(s)")
 
     os.makedirs(output_dir, exist_ok=True)
@@ -165,6 +202,7 @@ if __name__ == '__main__':
     mem_usage = np.round(final_df.memory_usage(deep=True).sum() / (1024**2), 1)
     print(f"Final dataset: {len(final_df)} rows, ~{mem_usage} MB")
 
-    final_df.to_csv(output_filename, sep=",", index=False, compression="gzip", date_format='%d/%m/%Y')
+    # TSV gzip output
+    final_df.to_csv(output_filename, sep="\t", index=False, compression="gzip", date_format='%d/%m/%Y')
     elapsed = round((time.perf_counter() - start) / 60, 2)
     print(f"\nSaved '{output_filename}' in {elapsed} minutes.")

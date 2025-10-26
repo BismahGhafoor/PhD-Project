@@ -45,7 +45,7 @@ if os.path.exists(output_filename):
 max_rows_limit = 20000
 
 # Columns we expect to keep
-cols_needed = ["patid", "eventdate", "indexdate", "enttype", "data1", "data2"]
+cols_needed = ["patid", "eventdate", "indexdate", "enttype", "data1", "data2", "data3"]
 
 # ---------------------------
 # Processing Loop
@@ -63,7 +63,7 @@ for idx, filename in enumerate(raw_test_files):
         chunksize=max_rows_limit,
         compression=compression,
         # If you know the input always includes these columns, you can uncomment:
-        usecols=["patid", "eventdate", "enttype", "data1", "data2"],
+        usecols=["patid", "eventdate", "enttype", "data1", "data2", "data3"],
         # (indexdate is computed below)
     )
 
@@ -91,15 +91,18 @@ for idx, filename in enumerate(raw_test_files):
 
         # Select the necessary columns (take intersection to be safe)
         keep_cols = [c for c in cols_needed if c in chunk.columns]
-        # Ensure enttype/data1/data2 exist; if missing, add empty columns
         for missing in set(cols_needed) - set(keep_cols):
             chunk[missing] = pd.NA
             keep_cols.append(missing)
-
+            
         chunk = chunk[keep_cols]
 
-        # Rename data1 -> value and data2 -> unit
-        chunk = chunk.rename(columns={"data1": "value", "data2": "unit"})
+        chunk = chunk.rename(columns={
+        "data2": "value",
+        "data3": "unit"
+        })
+        # (optional) keep operator for QA, or drop:
+        # chunk = chunk.drop(columns=["data1"])
 
         # Append the chunk to the output gz
         chunk.to_csv(
